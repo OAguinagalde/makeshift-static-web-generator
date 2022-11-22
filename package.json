@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "markdown-escape": "^2.0.0",
+    "marked": "^4.2.3"
+  }
+}
