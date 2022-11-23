@@ -3,15 +3,19 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Marked in the browser</title>
+    <title>Makeshift Static Website Generator</title>
+    <script src="src/util.js"></script>
 </head>
 
 <body>
-    <div id="content"></div>
-    <script src="node_modules/marked/marked.min.js"></script>
-    <script src="generated.js"></script>
+    <div id="1"></div>
+    <div id="2"></div>
     <script>
-        document.getElementById('content').innerHTML = marked.parse(markdown_data);
+        async function init() {
+            document.getElementById('1').innerHTML = await get_markdown_content_as_html("content");
+            document.getElementById('2').innerHTML = await get_markdown_content_as_html("some_other_file");
+        }
+        init()
     </script>
 </body>
 
