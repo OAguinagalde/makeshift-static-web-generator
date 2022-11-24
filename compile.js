@@ -100,6 +100,7 @@ async function build_project() {
         let modified = false;
         let $ = cheerio.load(html);
         
+        // embed markdown contents in articles
         for (let article of $('article')) {
             const id = article.attribs['id'];
             const markdown_file = id && markdown_files.find((item) => item.id === id)
@@ -108,6 +109,29 @@ async function build_project() {
                 const md_parsed = await marked.parse(md);
                 $(md_parsed).appendTo(article);
                 modified = true;
+            }
+        }
+
+        // process templates
+        const length_of_header = '/*template*/\n'.length;
+        for (let pre_code of $('pre code')) {
+            const inner_html = $(pre_code).html()
+            if (inner_html.startsWith('/*template*/')) {
+                let template_text = inner_html.substring(length_of_header);
+                let template_json = JSON.parse(template_text);
+                let handled = false;
+
+                switch (template_json.template) {
+                    case "fancy_subtitle": {
+                        const config = template_json.config;
+                        $($(pre_code).parent()).replaceWith($(`<div style="text-align: ${config.position};">${config.content}<div>`));
+                        handled = true; modified = true;
+                    } break;
+                }
+
+                if (!handled) {
+                    $(pre_code).remove()
+                }
             }
         }
 

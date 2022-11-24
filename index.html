@@ -14,7 +14,7 @@
     <!-- 2. And add that `markdown-body` class to the articles that contain the markdown -->
     <style>
         .markdown-body h1 {
-            color: red;
+            color: blue;
         };
     </style>
 
@@ -28,31 +28,10 @@
         <div class="row">
             <div class="column">
                 <article id="readme_article" class="markdown-body"></article>
-                <article id="configuration_article" class="markdown-body"></article>
+                <article id="using_a_template" class="markdown-body"></article>
             </div>
         </div>
     </div>
-
-    <script>
-        async function init() {
-
-            function make_fancy_date_element(date) {
-                let element = document.createElement("div"); // create a div
-                element.classList.add("FancyDate"); // set the class of the div element
-                element.textContent = date;
-                return element
-            }
-
-            interpret_markdown_configurations( (article, config) => {
-                if (config.date) {
-                    let title_element = article.getElementsByTagName("H1")[0];
-                    let fancy_date_element = make_fancy_date_element(config.date);
-                    title_element.insertAdjacentElement("afterend", fancy_date_element)
-                }
-            });
-        }
-        init()
-    </script>
 
     <!-- Bootstrap 5 scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
