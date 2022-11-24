@@ -3,20 +3,63 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
     <title>Makeshift Static Website Generator</title>
+    <!-- Required for using the compiled markdown stuff -->
     <script src="src/util.js"></script>
+
+    <!-- You can add specific style to markdown articles like this! Just... -->
+    <!-- 1. Add style to standard HTML tags that come after the class `markdown-body` -->
+    <!-- 2. And add that `markdown-body` class to the articles that contain the markdown -->
+    <style>
+        .markdown-body h1 {
+            color: red;
+        };
+    </style>
+
+    <!-- Bootstrap 5 style -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 </head>
 
 <body>
-    <div id="1"></div>
-    <div id="2"></div>
+    
+    <div class="container">
+        <div class="row">
+            <div class="column">
+            <article id="1" class="markdown-body"></article>
+            <!-- This one doesnt have the class markdown-body so the custome markdown style is not applied -->
+            <article id="2" ></article>
+            </div>
+        </div>
+    </div>
+
     <script>
         async function init() {
-            document.getElementById('1').innerHTML = await get_markdown_content_as_html("content");
-            document.getElementById('2').innerHTML = await get_markdown_content_as_html("some_other_file");
+            document.getElementById('1').innerHTML = await get_markdown_content_as_html("readme_article");
+            document.getElementById('2').innerHTML = await get_markdown_content_as_html("configuration_article");
+
+            function make_fancy_date_element(date) {
+                let element = document.createElement("div"); // create a div
+                element.classList.add("FancyDate"); // set the class of the div element
+                element.textContent = date;
+                return element
+            }
+
+            interpret_markdown_configurations( (article, config) => {
+                if (config.date) {
+                    let title_element = article.getElementsByTagName("H1")[0];
+                    let fancy_date_element = make_fancy_date_element(config.date);
+                    title_element.insertAdjacentElement("afterend", fancy_date_element)
+                }
+            });
         }
         init()
     </script>
+
+    <!-- Bootstrap 5 scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
 </body>
 
 </html>
