@@ -2,6 +2,8 @@
 // node.js imports
 const fs = require('fs');
 const util = require('util');
+const cheerio = require('cheerio');
+const marked = require('marked');
 const path = require('node:path');
 
 
@@ -55,11 +57,9 @@ async function build_project() {
     await fs.promises.mkdir(output_folder, { recursive: true });
 
 
-    // Process dependencies
+    // Process hard dependencies (aka, files that need to be copied to out)
     const dependencies = [
-        `./node_modules/marked/marked.min.js`,
-        `./index.html`,
-        `./src/`,
+        './src/',
     ];
 
     for (let i = 0; i < dependencies.length; i++) {
@@ -80,16 +80,49 @@ async function build_project() {
     }
 
     // Process markdown_content
-    await fs.promises.mkdir(output_folder + "/markdown_content", { recursive: true });
+    let markdown_files = [];
     await map_recursive('./markdown_content', async (file) => {
         const file_name = path.parse(file).name;
-        const target_file = path.normalize(output_folder + "/markdown_content/" + file_name + ".js");
-        const md_content = await fs.promises.readFile(file, 'utf8');
-        const escaped_md_data = escape(md_content);
-        const content_entry = `const ${file_name} = \`${escaped_md_data}\``
-        
-        await fs.promises.writeFile(target_file, content_entry);
+        markdown_files.push({id: file_name, file: file});
     });
+
+    // Process HTML files.
+    // Basically take all HTML files and apply the changes required where necessary.
+    // 1. Embed the Markdown content directly into the html
+    const html_files = [
+        './index.html',
+    ];
+
+    for (let i = 0; i < html_files.length; i++) {
+
+        const html_file = html_files[i];
+        const html = await fs.promises.readFile(html_file, 'utf8');
+        let modified = false;
+        let $ = cheerio.load(html);
+        
+        for (let article of $('article')) {
+            const id = article.attribs['id'];
+            const markdown_file = id && markdown_files.find((item) => item.id === id)
+            if (markdown_file) {
+                const md = await fs.promises.readFile(markdown_file.file, 'utf8');
+                const md_parsed = await marked.parse(md);
+                $(md_parsed).appendTo(article);
+                modified = true;
+            }
+        }
+
+        const out_html = path.normalize(output_folder + html_file);
+
+        if (modified) {
+            console.log('Processed ' + util.inspect(html_file));
+            await fs.promises.writeFile(out_html, $.html());
+        }
+        else {
+            console.log('Copying ' + util.inspect(html_file));
+            await fs.promises.copyFile(html_file, out_html);
+        }
+
+    }
 
 }
 

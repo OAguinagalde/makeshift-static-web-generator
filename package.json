@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
     "markdown-escape": "^2.0.0",
     "marked": "^4.2.3"
   }

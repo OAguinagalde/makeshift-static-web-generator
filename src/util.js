@@ -1,3 +1,10 @@
+// Example of usage
+// 
+//     await load_js("markdown_content/" + name + ".js");
+//     const markdown_content = eval(name)
+//     await load_js("node_modules/marked/marked.min.js");
+//     return marked.parse(markdown_content);
+// 
 async function load_js(url) {
     
     let exists = document.querySelector(`script[src="${url}"]`);
@@ -16,14 +23,6 @@ async function load_js(url) {
         document.body.appendChild(script_tag);
     })
     
-}
-
-async function get_markdown_content_as_html(name) {
-    await load_js("markdown_content/" + name + ".js");
-    const markdown_content = eval(name)
-    await load_js("node_modules/marked/marked.min.js");
-    const marked = window["marked"];
-    return marked.parse(markdown_content);
 }
 
 // Given an element inside a markdown content, returns the parent Article tag

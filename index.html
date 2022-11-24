@@ -27,17 +27,14 @@
     <div class="container">
         <div class="row">
             <div class="column">
-            <article id="1" class="markdown-body"></article>
-            <!-- This one doesnt have the class markdown-body so the custome markdown style is not applied -->
-            <article id="2" ></article>
+                <article id="readme_article" class="markdown-body"></article>
+                <article id="configuration_article" class="markdown-body"></article>
             </div>
         </div>
     </div>
 
     <script>
         async function init() {
-            document.getElementById('1').innerHTML = await get_markdown_content_as_html("readme_article");
-            document.getElementById('2').innerHTML = await get_markdown_content_as_html("configuration_article");
 
             function make_fancy_date_element(date) {
                 let element = document.createElement("div"); // create a div
