@@ -1,9 +1,23 @@
 # Makeshift static website generator
 
-You need to install the dependencies with `npm install`.
+This is a work-in-progress makeshift static website generator.
 
-Running `node .\compile.js` will take the content in the file `content.md` and generate a file called `generated.js`.
+"Makeshift" as in:  
+> /ˈmākˌSHift/  
+> adjective  
+> serving as a temporary substitute; sufficient for the time being.  
 
-The generated file contains the content of the markdown file escaped.
+Except I'll probably rather stick to it rather than learn yet another tool (such as Jekyll or whatever).
 
-Then just open `index.html` and it will show what the `content.md` has directly there.
+## Usage
+
+The repository includes both the static website generator (mostly just `compile.js`) as well as an example of a site to generate (including `index.html` and the folders `./src` and `./markdown_content`).
+
+In order to generate the site just execute `node compile.js` and the tool will put the ready to use static website in the `./out` folder.
+
+## Features
+
+The features include:
+* **Embeddeing markdown content** directly into the `html` files.
+* **Bundling** the site and dependencies together in a single folder.
+* A way to embed custom constructs into your markdown articles, which I call **templates**.
