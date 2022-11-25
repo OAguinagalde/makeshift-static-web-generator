@@ -7,7 +7,7 @@
 // 
 async function load_js(url) {
     
-    let exists = document.querySelector(`script[src="${url}"]`);
+    const exists = document.querySelector(`script[src="${url}"]`);
     if (exists) return;
 
     console.log(`Loading script ${url}`);
