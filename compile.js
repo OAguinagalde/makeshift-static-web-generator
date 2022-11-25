@@ -10,9 +10,9 @@ const marked = require('marked');
 
 // utility functions
 async function copy_recursive(src, dest) {
-    var exists = fs.existsSync(src);
-    var stats = exists && await fs.promises.stat(src);
-    var is_directory = exists && stats.isDirectory();
+    const exists = fs.existsSync(src);
+    const stats = exists && await fs.promises.stat(src);
+    const is_directory = exists && stats.isDirectory();
     if (is_directory) {
         await fs.promises.mkdir(dest);
         const files = await fs.promises.readdir(src);
@@ -29,9 +29,9 @@ async function copy_recursive(src, dest) {
 };
 
 async function map_recursive(item, f) {
-    var exists = fs.existsSync(item);
-    var stats = exists && await fs.promises.stat(item);
-    var is_directory = exists && stats.isDirectory();
+    const exists = fs.existsSync(item);
+    const stats = exists && await fs.promises.stat(item);
+    const is_directory = exists && stats.isDirectory();
     if (is_directory) {
         const files = await fs.promises.readdir(item);
         for (let i = 0; i < files.length; i++) {
@@ -115,8 +115,8 @@ async function build_project() {
         for (let pre_code of $('pre code')) {
             const inner_html = $(pre_code).html()
             if (inner_html.startsWith('/*template*/')) {
-                let template_text = inner_html.substring(length_of_header);
-                let template_json = JSON.parse(template_text);
+                const template_text = inner_html.substring(length_of_header);
+                const template_json = JSON.parse(template_text);
                 let handled = false;
 
                 switch (template_json.template) {
