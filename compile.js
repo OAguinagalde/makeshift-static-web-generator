@@ -44,6 +44,57 @@ async function map_recursive(item, f) {
     }
 };
 
+const regexp = /<<<(md|html):(.+)>>>|\{\{\{(.+)\}\}\}/;
+
+async function parse(file_path, options) {
+
+    console.log(`parsing template: ${file_path}`);
+    const file_content = await fs.promises.readFile(file_path);
+    const lines = file_content.toString().split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+
+        for (let match = lines[i].match(regexp), result; match;) {
+            
+            // <<<[md|html].+>>> for files
+            if (match[0][0] === '<') {
+                
+                const relative_file = match[2].trim();
+
+                switch (match[1]) {
+                    
+                    case 'md': {
+                        console.log(`inserting md: ${relative_file}`);
+                        const md = await fs.promises.readFile(relative_file, 'utf8');
+                        const md_parsed = await marked.parse(md);
+                        result = md_parsed;
+                    } break;
+
+                    
+                    case 'html': {
+                        result = await parse(relative_file, options);
+                    } break;
+
+                }
+            }
+
+            // {{{.+}}} for variables
+            else {
+                const variable_to_replace = match[3].trim();
+                result = options[match[3].trim()];
+                console.log(`replacing variable: ${variable_to_replace} => ${options[variable_to_replace]}`);
+            }
+
+            lines[i] = lines[i].replace(match[0], result ? result : '');
+            match = lines[i].match(regexp);
+        
+        }
+    
+    }
+
+    return lines.join('');
+}
+
 // this is the entrypoint of the the application,
 // where the static site is actually generated
 async function build_project(deps, pages) {
@@ -118,10 +169,22 @@ async function build_project(deps, pages) {
                 const template_json = JSON.parse(template_text);
                 let handled = false;
 
+                console.log(`processing template: ${template_json.template}`);
                 switch (template_json.template) {
+                    
                     case "fancy_subtitle": {
                         const config = template_json.config;
                         $($(pre_code).parent()).replaceWith($(`<div style="text-align: ${config.position};">${config.content}<div>`));
+                        handled = true; modified = true;
+                    } break;
+                    
+                    default: {
+                        // If the name is not recognized, lets assume its an actual template file that
+                        // needs to be parsed with the function `parse` above
+                        const template_name = template_json.template;
+                        const config = template_json.config;
+                        const template_file_parsed = await parse(template_name, config)
+                        $($(pre_code).parent()).replaceWith($(template_file_parsed));
                         handled = true; modified = true;
                     } break;
                 }
@@ -135,11 +198,11 @@ async function build_project(deps, pages) {
         const out_html = path.normalize(output_folder + html_file);
 
         if (modified) {
-            console.log('Processed ' + util.inspect(html_file));
+            console.log('Processed page: ' + util.inspect(html_file));
             await fs.promises.writeFile(out_html, $.html());
         }
         else {
-            console.log('Copying ' + util.inspect(html_file));
+            console.log('Copied page: ' + util.inspect(html_file));
             await fs.promises.copyFile(html_file, out_html);
         }
 
