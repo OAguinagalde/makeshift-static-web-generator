@@ -57,9 +57,7 @@ async function build_project(deps, pages) {
 
 
     // Process hard dependencies (aka, files that need to be copied to out)
-    const dependencies = deps ?? [
-        './src/',
-    ];
+    const dependencies = deps ?? [];
 
     for (let i = 0; i < dependencies.length; i++) {
 
@@ -155,14 +153,14 @@ const argv = yargs.command('build', 'build the static site in ./out', {
         description:
             `An array of files or folders, which will be copied over to the output folder. They must be relative to the projects root`,
         type: 'array',
-        requiresArg: true
+        requiresArg: true,
     },
     pages: {
         description:
             `An array of html files to be processed. Must be in the root of the folder.`,
         type: 'array',
-        requiresArg: true
-    }
+        requiresArg: true,
+    },
 }).demandCommand(1, 1).argv;
 
 switch (argv._[0]) {
