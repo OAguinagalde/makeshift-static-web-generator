@@ -174,7 +174,7 @@ async function build_project(deps, pages) {
                     
                     case "fancy_subtitle": {
                         const config = template_json.config;
-                        $($(pre_code).parent()).replaceWith($(`<div style="text-align: ${config.position};">${config.content}<div>`));
+                        $($(pre_code).parent()).replaceWith($(`<div class=${config.class}>${config.content}</div>`));
                         handled = true; modified = true;
                     } break;
                     

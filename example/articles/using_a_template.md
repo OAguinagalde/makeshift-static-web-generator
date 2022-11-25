@@ -6,7 +6,7 @@
 {
     "template":"fancy_subtitle",
     "config": {
-        "position":"center",
+        "class": "date",
         "content": "24/11/2022"
     }
 }
