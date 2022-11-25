@@ -127,9 +127,9 @@ async function build_project(deps, pages) {
         }
     }
 
-    // Process markdown_content
+    // Process articles
     let markdown_files = [];
-    await map_recursive('./markdown_content', async (file) => {
+    await map_recursive('./articles', async (file) => {
         const file_name = path.parse(file).name;
         markdown_files.push({id: file_name, file: file});
     });
