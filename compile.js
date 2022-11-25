@@ -2,14 +2,11 @@
 // node.js imports
 const fs = require('fs');
 const util = require('util');
-const cheerio = require('cheerio');
-const marked = require('marked');
 const path = require('node:path');
 
-
 // library imports
-const escape = require('markdown-escape')
-
+const cheerio = require('cheerio');
+const marked = require('marked');
 
 // utility functions
 async function copy_recursive(src, dest) {
@@ -46,7 +43,8 @@ async function map_recursive(item, f) {
     }
 };
 
-
+// this is the entrypoint of the the application,
+// where the static site is actually generated
 async function build_project() {
 
     // Prepare output folder

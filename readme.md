@@ -15,6 +15,8 @@ The repository includes both the static website generator (mostly just `compile.
 
 In order to generate the site just execute `node compile.js` and the tool will put the ready to use static website in the `./out` folder.
 
+You can also build the application into a single `exe` file by running `npx pkg -t node18-win .\compile.js`, which will generate a file `compile.exe`, which you can then execute freely in a different project.
+
 ## Features
 
 The features include:
