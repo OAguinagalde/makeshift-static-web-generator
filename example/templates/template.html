@@ -1,20 +1,13 @@
-<!-- This file is a template in itself! -->
-<div>
+<div style="background-color: {{{color}}} ">
 
-    <p>This is an html template. You can add me anywher!</p>
+    <p>This is an html template</p>
 
-    <p>Also, you can insert a template inside a template, like down below!</p>
+    <p>Also, you can insert a template inside a template, like this!</p>
 
-    <!-- This will insert another template -->
     <<<html:templates/title.html>>>
 
-    <div>
-        <p>Tempaltes can replace simple things with variables, my name is {{{name}}}!</p>
-    </div>
+    <p>Finally, you can embed markdown files directly like this</p>
 
-    <p>I Templates can also render markdown inside, because why not!</p>
-
-    <!-- This will insert a markdown file -->
     <<<md:articles/markdown_file.md>>>
 
 </div>

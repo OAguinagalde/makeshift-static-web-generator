@@ -2,105 +2,143 @@
 
 This is a work-in-progress makeshift static website generator.
 
-"Makeshift" as in:  
-> /ˈmākˌSHift/  
-> adjective  
-> serving as a temporary substitute; sufficient for the time being.  
+```
+Makeshift, adjective:                                /ˈmākˌSHift/
+> Serving as a temporary substitute; sufficient for the time being.  
+```
 
-Except I'll probably rather stick to it rather than learn yet another tool (such as Jekyll or whatever).
+Except I'd rather stick to it rather than learn yet another tool (such as Jekyll or whatever).
+
+This repository includes:
+* The source code for `mswg`: The static website generator (`compile.js`)
+* An example project (`./example`) to be built with `mswg`.
 
 ## Usage
 
-The repository includes both the static website generator (mostly just `compile.js`) as well as an example of a site to generate (including `index.html` and the folders `./src` and `./markdown_content`).
+You can either directly run the code with node...
 
-In order to generate the site just execute `node compile.js` and the tool will put the ready to use static website in the `./out` folder.
+```ps1
+cd example
+node ../compile.js build --dependencies src --pages index.html
+```
 
-You can also build the application into a single `exe` file by running `npx pkg -t node18-win .\compile.js`, which will generate a file `compile.exe`, which you can then execute freely in a different project.
+... or you can also **package** the tool into a single binary file (`mswg.exe`) by running the script `build.ps1`.
+
+```ps1
+./build.ps1
+cd example
+../bin/mswg.exe build --dependencies src --pages index.html
+```
+
+> Check the script `build.ps1` for details on how to build the tool for `macos` or `linux`
 
 ## Features
 
 The features include:
-* **Embeddeing markdown content** directly into the `html` files.
-* **Bundling** the site and dependencies together in a single folder.
-* A way to embed custom constructs into your markdown articles, which I call **templates**.
+* Embed `markdown` content directly into the website's `page`s.
+* Write parameterized `templates` which you can inject and reuse into your `markdown` articles.
+* Bundle the `project` and it's `dependencies` together in a single folder, ready to deploy.
 
 ## Manual
 
-### Setup dependencies and pages
+### Projects, Dependencies and Pages
 
-The `compile.js` file contains these in the source code:
+There is 3 simple concepts to understand when using this tool:
 
-```js
-async function build_project() {
-    
-    // ...
+* The **Project** is a folder which contains all the files required to build your static website.
+    * You can find an `example` of a project in the example folder.
 
-    const dependencies = [
-        './src/',
-    ];
+* The project's **dependencies** are the files that will be required for the final website to work correctly during "runtime".
+    * Style `css` files and javascript source code that the website uses, **are dependencies** of the website.  
+    * However, any file in your project that is not required for the final website (such as a `readme.md` or a `.gitignore` file), is **not a dependency**.
+    * Both folders and files are allowed as dependencies:
+    ```ps1
+    mswg.exe build --dependencies ./src ./css ./node_modules/some_lib/lib.min.js
 
-    // ...
-
-    const html_files = [
-        './index.html',
-    ];
-    
-    // ...
-}
-```
-
-The array of `dependencies` specifies the files that are hard dependencies for the project. These can be either single files such as `./node_modules/some_library/some_library.min.js` or full folders such as `./src`. These will be copyed as-is directly into the `./out` folder. Anything that the page `index.html` requires should be listed in the `dependencies` array.
-
-Note that the main site `index.html` should be listed in the array `html_files`, since these are not copied as is like the `dependencies` are. Instead, all the files in `html_files` will be processed. That processing will transform those `html` files without modifying the original ones, and put the processed version on the `./out` folder.
-
-The processing of `html` files includes:
-* Embedding markdown articles
-* Processing templates inside markdown articles
+* Finally, a **page** is an `html` file which is not complete until this tool has processed it and embedded any template or `markdown` file that it requires.
+  * Your project may have multiple pages, if for example, `index.html` has a link to `about.html`
+    ```ps1
+    mswg.exe build --dependencies ./src ./css --pages index.html about.html
+    ```
 
 ### Markdown article embedding
 
-For every `article` element with an `id` set, the compiler will look for a file `./markdown_content/id.md`, and if it exists, it will embed the markdown inside the `article` tag.
+For every `article` element with an `id` set, the compiler will look for the file, and if it exists, it will embeded inside `article` tag.
 
 ```html
-<article id="some_id"></article>
+<article id="artciles/some_markdown_article.md"></article>
 ```
 
-In that case, the compiler will look for the file `./markdown_content/some_id.md` and put it in there.
+This embedding process happens during "compile time". That means that the page `index.html` and the page `./out/index.html` will be different, since the one in out already contains the `markdown` inside.
 
-### Using Template constructs inside Markdown
+### Using Templates inside Markdown
 
-You can use templates in order to add things to your markdown articles that are otherwise not possible with only markdown.
+Since `markdown` has a rather limited features, you can use templates to personalize your mages in a more dyncamic way.
 
-It's not great or easy, as it requires the template to be directly implemented inside the source code of `compile.js`. Here is an example...
+Templates allow you to define an `html` template file which can contain these special tags:
+* `<<<md:articles/some_article.md>>>`: This allows you to introduce pieces of `markdown` directly in the template.
+* `<<<html:templates/some_other_template.html>>>`: This allows you to introduce a template inside of the template.
+* `{{{some_variable}}}`: This allows you to set the values that the template should use, allowing the template to be reusable.
+    These variables are set via the `config` element of the `json` object that is pased to the template (more on this down below).
 
-Say you want to add a center-aligned piece of text, you can do so by writing this inside your markdown file:
+A template file looks something like this:
 
-````markdown
+```html
+<div style="background-color: {{{color}}} ">
+
+    <p>This is an html template</p>
+
+    <p>Also, you can insert a template inside a template, like this!</p>
+
+    <<<html:templates/title.html>>>
+
+    <p>Finally, you can embed markdown files directly like this</p>
+
+    <<<md:articles/markdown_file.md>>>
+
+</div>
+```
+
+You can use a template in your `markdown` article by defining the **template file** and its **parameters**, like this:
+
+````
 ```json
 /*template*/
 {
-    "template":"fancy_subtitle",
+    "template":"some/template/file.html",
     "config": {
-        "position":"center",
-        "content": "24/11/2022"
+        "some_parameter": "red",
     }
 }
 ```
 ````
 
-The `compile.js` contains this code, which will find that construct in the markdown files, and handle it to obtain the desired effect.
+> Its important that the `json` object uses valid syntax, since it will be parsed with `JSON.parse`.
+> Also, the `/*template*/\n` tag is expected to be there, as a way to recognize templates from other `markdown` constructs.
 
-```js
-switch (template_json.template) {
-    
-    // If the template is of type fancy_subtitle
-    case "fancy_subtitle": {
-        // Get the configuration fo the template
-        const config = template_json.config;
-        // Un using `cheerio` to manipulate the dom here.
-        // This line of code is basically taking the html element that represents the markdown template piexe of text we wrote "$($(pre_code).parent())".
-        // And then it replaces it with a <div> tag, making it so that the original element gets replaced with the desired construct.
-        $($(pre_code).parent()).replaceWith($(`<div style="text-align: ${config.position};">${config.content}<div>`));
-    } break;
-}
-```
+Finally here is a template example:
+
+> Say you want to add particular piece of `html` in one of your `markdown` articles.
+> You can do so by defining a template file `templates/title_with_adjective.html` such as this:
+> 
+> ```html
+> <h1>This is a {{{adjective}}} templated title!</h1>
+> ```
+>
+> In order to use it, you can add this text to your `markdown` files, which allows you to add 
+> values to be replaced in the template.
+> 
+> ````
+> ```json
+> /*template*/
+> {
+>     "template":"templates/title_with_adjective.html",
+>     "config": {
+>         "adjective":"great",
+>     }
+> }
+> ```
+> ````
+>
+> If done correctly, the template should be rendered inside the `markdown` file.
+
