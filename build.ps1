@@ -1,0 +1,1 @@
+npx pkg -t node18-win,node18-macos .\compile.js -o bin/mswg
