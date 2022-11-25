@@ -1,3 +1,6 @@
+# Using the new templates
+
+The way it works is that you can now define templates in the form of `html` files.
 
 ```json
 /*template*/
