@@ -7,6 +7,7 @@ const path = require('node:path');
 // library imports
 const cheerio = require('cheerio');
 const marked = require('marked');
+const yargs = require('yargs');
 
 // utility functions
 async function copy_recursive(src, dest) {
@@ -45,7 +46,7 @@ async function map_recursive(item, f) {
 
 // this is the entrypoint of the the application,
 // where the static site is actually generated
-async function build_project() {
+async function build_project(deps, pages) {
 
     // Prepare output folder
     const output_folder = './out/'
@@ -56,7 +57,7 @@ async function build_project() {
 
 
     // Process hard dependencies (aka, files that need to be copied to out)
-    const dependencies = [
+    const dependencies = deps ?? [
         './src/',
     ];
 
@@ -87,7 +88,7 @@ async function build_project() {
     // Process HTML files.
     // Basically take all HTML files and apply the changes required where necessary.
     // 1. Embed the Markdown content directly into the html
-    const html_files = [
+    let html_files = pages ?? [
         './index.html',
     ];
 
@@ -148,4 +149,30 @@ async function build_project() {
 
 }
 
-build_project();
+// Handle command
+const argv = yargs.command('build', 'build the static site in ./out', {
+    dependencies: {
+        description:
+            `An array of files or folders, which will be copied over to the output folder. They must be relative to the projects root`,
+        type: 'array',
+        requiresArg: true
+    },
+    pages: {
+        description:
+            `An array of html files to be processed. Must be in the root of the folder.`,
+        type: 'array',
+        requiresArg: true
+    }
+}).demandCommand(1, 1).argv;
+
+switch (argv._[0]) {
+    
+    case 'build': {
+        build_project(argv.dependencies, argv.pages);
+    } break;
+    
+    default: {
+        build_project();
+    } break;
+
+}
