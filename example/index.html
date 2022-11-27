@@ -6,12 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
     <title>Makeshift Static Website Generator</title>
-    <!-- Required for using the compiled markdown stuff -->
+
     <script src="src/util.js"></script>
 
-    <!-- You can add specific style to markdown articles like this! Just... -->
-    <!-- 1. Add style to standard HTML tags that come after the class `markdown-body` -->
-    <!-- 2. And add that `markdown-body` class to the articles that contain the markdown -->
+    <!-- You can add specific style to markdown articles like this! Just...
+        1. Add style to standard HTML tags that come after the class `markdown-body`
+        2. And add that `markdown-body` class to the articles that contain the markdown -->
     <style>
         .markdown-body h1 {
             color: blue;
@@ -24,15 +24,13 @@
 
 <body>
 
-    <div class="container">
-        <div class="row">
-            <div class="column">
-                <article id="articles/readme_article.md" class="markdown-body"></article>
-                <article id="articles/using_a_template.md" class="markdown-body"></article>
-                <article id="articles/template_again.md" class="markdown-body"></article>
+        <div class="container">
+            <div class="row">
+                <div class="column">
+                    <section type="template" template="templates/project_list.html" input="data/projects.2022.json"></section>
+                </div>
             </div>
         </div>
-    </div>
 
     <!-- Bootstrap 5 scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>

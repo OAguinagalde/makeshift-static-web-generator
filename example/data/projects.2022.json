@@ -1,0 +1,15 @@
+{
+    "title": "My projects of 2022",
+    "list": [
+        {
+            "dateRange": "2022 October ~ 2022 November",
+            "title": "Project Cutepon",
+            "description": "I made a web application at https://cutepon.net!"
+        },
+        {
+            "dateRange": "2022 November ~ 2022 December",
+            "title": "Makeshift Static Website Generator",
+            "description": "<<<../readme.md>>>"
+        }
+    ]
+}
