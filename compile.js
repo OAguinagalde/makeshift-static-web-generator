@@ -44,71 +44,149 @@ async function map_recursive(item, f) {
     }
 };
 
-const regexp = /<<<(md|html|c):(.+)>>>|\{\{\{(.+)\}\}\}/;
+const regexp = /<<<(.+)>>>|\{\{\{(.+)\}\}\}/;
 
-async function parse(input, is_file, options) {
+// Either html files or html string! (allows inclusion of custom <section> tags and custom injectors)
+async function parse(input, options) {
 
     let data_to_parse;
-    if (is_file) {
-        console.log(`parsing template: ${input}`);
+
+    // Check if input is a file, or just a string
+    if (fs.existsSync(input)) {
+        console.log(`Parsing file: ${input}`);
         data_to_parse = await fs.promises.readFile(input);
     }
     else {
-        console.log(`parsing text: ${input.substring(0,50).replace(/(?:\r\n|\r|\n)/g,"")}...`);
+        let preview_of_input_singleline = input.substring(0,150).replace(/(?:\r\n|\r|\n)/g,"");
+        console.log(`Parsing text: ${preview_of_input_singleline}...`);
         data_to_parse = input;
     }
-    const lines = data_to_parse.toString().split('\n');
 
+    // data_to_parse should be html here already...
+    let $ = cheerio.load(data_to_parse);
+
+    // expand template tags
+    const get_template_tag = () => {
+        // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
+        let template = $('section[class=template]').first();
+        return template.length > 0 ? template : undefined;
+    }
+
+    for (let template = get_template_tag(); template; template = get_template_tag()) {
+        const inner_html = $(template).html();
+        const input_file = $(template).attr('input');
+        const template_file = $(template).attr('template');
+
+        // Parse the file name to be able to to get its extension
+        const input = await fs.promises.readFile(input_file, 'utf8');
+        const json = await JSON.parse(input);
+        
+        let result = await parse(template_file, json);
+
+        // Remove the original article tag fully and replace it with the processed content
+        template.replaceWith($(result))
+
+        // If the template contains any <section class='innermarker'/> tag, put back the old innter html where it is
+        const inner_marker = $('section[class=innermarker]').first();
+        if (inner_marker.length > 0) {
+            inner_marker.replaceWith(inner_html);
+        }
+
+    }
+    
+    // expand repeat tags
+    const get_repeat_tag = () => {
+        // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
+        let repeat = $('section[class=repeat]').first();
+        return repeat.length > 0 ? repeat : undefined;
+    }
+
+    let repeated = {}
+
+    for (let repeat = get_repeat_tag(); repeat; repeat = get_repeat_tag()) {
+        const repeated_html = $(repeat).html();
+        const parameters_array_name = $(repeat).attr('parameters');
+        const repeat_times = options[parameters_array_name].length;
+
+        repeated[parameters_array_name] = {
+            times: 0,
+            processed: []
+        }
+
+        let total_html = "";
+        for(let i = 0; i < repeat_times; i++) total_html += repeated_html;
+
+        $(repeat).replaceWith($(total_html));
+    }
+
+    data_to_parse = $('body').html()
+
+    // Line by line, find custom tags and process them
+    const lines = data_to_parse.toString().split('\n');
     for (let i = 0; i < lines.length; i++) {
 
         for (let match = lines[i].match(regexp), result; match;) {
             
             if (match[0][0] === '<') {
                 
-                const relative_file = match[2].trim();
+                const relative_file = match[1].trim();
+                const file = path.parse(relative_file);
 
-                switch (match[1]) {
+                switch (file.ext) {
                     
-                    case 'md': {
+                    case '.md': {
                         const md = await fs.promises.readFile(relative_file, 'utf8');
                         const md_parsed = await marked.parse(md);
-                        result = md_parsed;
-                    } break;
-
-                    case 'c': {
-                        if (relative_file === 'inner') {
-                            result = '<innermarker></innermarker>'
-                        }
+                        result = await parse(md_parsed, options);
                     } break;
                     
-                    case 'html': {
-                        result = await parse(relative_file, true, options);
+                    // Does it even make sense to use this?
+                    case '.html': {
+                        result = await parse(relative_file, options);
                     } break;
 
                 }
             }
 
             else {
-                const content = match[3].trim();
-                const [ variable, index, sub_variable ] = content.split(":", 3);
+                const content = match[2].trim();
+                const [ variable, location ] = content.split(":", 2);
                 
-                if (index && sub_variable) {
+                if (location) {
                     
-                    result = options[variable][index][sub_variable];
+                    if (variable === '#') {
+                        result = options[location][repeated[location].times];
+                        repeated[location].times++;
+                    }
+
+                    else {
+
+                        // Should I got to next one?
+                        if (repeated[location].processed.includes(variable)) {
+                            // Then I have already used that value, meaning I'm starting a new repeated block
+                            repeated[location].times++;
+                            repeated[location].processed = [];
+                        }
+                        
+                        result = options[location][repeated[location].times][variable];
+                        repeated[location].processed.push(variable);
+                    }
+
                 }
                 else {
                     result = options[variable];
                 }
             }
 
-            console.log(`replacing ${match[0]} with ${result.substring(0, 50).replace(/(?:\r\n|\r|\n)/g,"")}...`);
-            lines[i] = lines[i].replace(match[0], result ? result : '');
+            lines[i] = lines[i].replace(match[0], result);
+            
+            // If a new match is found here, the loop will continue until every injection has been processed
             match = lines[i].match(regexp);
-        
         }
     
     }
 
+    // Put the lines back together and return as a string
     return lines.join('');
 }
 
@@ -158,115 +236,66 @@ async function build_project(deps, pages) {
         let modified = false;
         let $ = cheerio.load(html);
         
-        // Find every tag of type article and do whatever needs to be done with it
-        for (let article = $('article').first(); article;) {
+        const get_first_unhandled_article = () => {
+            // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
+            let article = $('article').filter(function (i, el) { return $(this).attr('handled') !== 'true'; }).first();
+            return article.length > 0 ? article : undefined;
+        }
+        
+        for (let article = get_first_unhandled_article(); article; article = get_first_unhandled_article()) {
         
             // mark the article as handled, so that it is not handled twice
             $(article).attr('handled', 'true');
         
-            // For now, the id of the article is expected to be a relative path to an actual file
-            // of type json or md. Example: <article id="some/file.json"/>
-            const file_path = $(article).attr('id');
-            if (fs.existsSync(file_path)) {
+            const relative_path = $(article).attr('id');
+            if (fs.existsSync(relative_path)) {
             
-                // Parse the file name to be able to to get its extension
-                const file = path.parse(file_path);
-                switch (file.ext) {
+                const extension = path.parse(relative_path).ext;
+
+                const file_content = await fs.promises.readFile(relative_path, 'utf8');
+                
+                let result;
+
+                switch (extension) {
                     
-                    // If its a markdown file:
-                    // 1. load the file
-                    // 2. check if it has any special tag <<<...>>> or {{{...}}} and replace it
-                    // 3. conver it into html
-                    // 4. put it back into the final html page
                     case ".md": {
-                        const md = await fs.promises.readFile(file_path, 'utf8');
-                        const template_file_parsed = await parse(md, false, {})
-                        const md_parsed = await marked.parse(template_file_parsed);
-                        
-                        const inner_elements = $(article).html();
-                        $(article).children().remove()
-                        $(md_parsed).appendTo(article);
-
-                        // Used for when we want to keep the inner html of the article tag: <article> innerstuff </article>
-                        $('innermarker').replaceWith(inner_elements)
-
-                        modified = true;
+                        const md = await marked.parse(file_content);
+                        result = await parse(md);
                     } break;
                     
-                    // If its a json file:
-                    // 1. load the file
-                    // 2. parse the json
-                    // 3. it should contain both a "template" and a "config" fields
-                    // 4. Load the template file and pass the config as options.
-                    // 5. put it back into the final html page
                     case ".json": {
-                        const json = await fs.promises.readFile(file_path, 'utf8');
-                        const json_parsed = await JSON.parse(json);
-                        const template_name = json_parsed.template;
-                        const config = json_parsed.config;
-                        const template_file_parsed = await parse(template_name, true, config)
-                        $(template_file_parsed).appendTo(article);
-                        modified = true;
+                        const json = await JSON.parse(file_content);
+                        result = await parse(json.template, json.config)
                     } break;
+                }
+
+                if (result) {
+
+                    // Remove the original article tag fully and replace it with the processed content
+                    const inner_elements = $(article).html();
+                    $(article).children().remove()
+                    $(result).appendTo(article);
+
+                    // If the template contains any <section class='innermarker'/> tag, put back the old innter html where it is
+                    const inner_marker = $('section[class=innermarker]').first();
+                    if (inner_marker.length > 0) {
+                        inner_marker.replaceWith(inner_elements);
+                    }
+
+                    modified = true;
                 }
                 
-            }
-
-            // check if there is any article tag left to handle
-            const left_to_handle = $('article').filter(function (i, el) {
-                return $(this).attr('handled') !== 'true';
-            })
-
-            if (left_to_handle.length > 0) {
-                article = left_to_handle.first();
-            }
-            else {
-                break;
-            }
-        }
-
-        // process templates embeded in markdown files
-        const length_of_header = '/*template*/'.length;
-        for (let pre_code of $('pre code')) {
-            const inner_html = $(pre_code).html()
-            if (inner_html.startsWith('/*template*/')) {
-                const template_text = inner_html.substring(length_of_header);
-                const template_json = JSON.parse(template_text);
-                let handled = false;
-
-                switch (template_json.template) {
-                    
-                    case "fancy_subtitle": {
-                        const config = template_json.config;
-                        $($(pre_code).parent()).replaceWith($(`<div class=${config.class}>${config.content}</div>`));
-                        handled = true; modified = true;
-                    } break;
-                    
-                    default: {
-                        // If the name is not recognized, lets assume its an actual template file that
-                        // needs to be parsed with the function `parse` above
-                        const template_name = template_json.template;
-                        const config = template_json.config;
-                        const template_file_parsed = await parse(template_name, true, config)
-                        $($(pre_code).parent()).replaceWith($(template_file_parsed));
-                        handled = true; modified = true;
-                    } break;
-                }
-
-                if (!handled) {
-                    $(pre_code).remove()
-                }
             }
         }
 
         const out_html = path.normalize(output_folder + html_file);
 
         if (modified) {
-            console.log('Processed page: ' + util.inspect(html_file));
+            // console.log('Processed page: ' + util.inspect(html_file));
             await fs.promises.writeFile(out_html, $.html());
         }
         else {
-            console.log('Copied page: ' + util.inspect(html_file));
+            // console.log('Copied page: ' + util.inspect(html_file));
             await fs.promises.copyFile(html_file, out_html);
         }
 
