@@ -47,14 +47,31 @@ async function map_recursive(item, f) {
 const regexp = /<<<(.+)>>>|\{\{\{(.+)\}\}\}/;
 
 // Either html files or html string! (allows inclusion of custom <section> tags and custom injectors)
-async function parse(input, options) {
+async function parse(input, options, is_root) {
 
     let data_to_parse;
 
     // Check if input is a file, or just a string
     if (fs.existsSync(input)) {
         console.log(`Parsing file: ${input}`);
-        data_to_parse = await fs.promises.readFile(input);
+
+        const extension = path.parse(input).ext;
+        const file_content = await fs.promises.readFile(input, 'utf8');
+        
+        switch (extension) {
+            
+            case ".md": {
+                data_to_parse = await marked.parse(file_content);
+            } break;
+            
+            case ".json": {
+                throw "Cant use a json file as a template!"
+            } break;
+
+            case ".html": {
+                data_to_parse = file_content;
+            } break;
+        }
     }
     else {
         let preview_of_input_singleline = input.substring(0,150).replace(/(?:\r\n|\r|\n)/g,"");
@@ -78,8 +95,8 @@ async function parse(input, options) {
         const template_file = $(template).attr('template');
 
         // Parse the file name to be able to to get its extension
-        const input = await fs.promises.readFile(input_file, 'utf8');
-        const json = await JSON.parse(input);
+        const input = input_file && await fs.promises.readFile(input_file, 'utf8');
+        const json = input_file && await JSON.parse(input);
         
         let result = await parse(template_file, json);
 
@@ -119,7 +136,18 @@ async function parse(input, options) {
         $(repeat).replaceWith($(total_html));
     }
 
-    data_to_parse = $('body').html()
+    // NOTES (Oscar): The reason I do this is that cheerio automatically adds html, head and body tags
+    // to pieces of html that do not have them.
+    // This means that if I'm processing a template (which wont have html, head or body tags)
+    // it will add it to them, but I only care about the body in those cases.
+    // However, if this is the main html file we are handling, I obviously want to conserve the
+    // original tags, meaning I can get the whole html tree
+    if (is_root) {
+        data_to_parse = $(':root').html()
+    }
+    else {
+        data_to_parse = $('body').html()
+    }
 
     // Line by line, find custom tags and process them
     const lines = data_to_parse.toString().split('\n');
@@ -190,23 +218,16 @@ async function parse(input, options) {
     return lines.join('');
 }
 
-// this is the entrypoint of the the application,
-// where the static site is actually generated
 async function build_project(deps, pages) {
 
-    // Prepare output folder
     const output_folder = './out/'
     if (fs.existsSync(output_folder)) {
         await fs.promises.rm(output_folder, { recursive: true, force: true });
     }
     await fs.promises.mkdir(output_folder, { recursive: true });
 
-
-    // Process hard dependencies (aka, files that need to be copied to out)
     const dependencies = deps ?? [];
-
     for (let i = 0; i < dependencies.length; i++) {
-
         const dep_origin = dependencies[i];
         const dep_origin_info = await fs.promises.lstat(dep_origin);
         const dep_target = path.normalize(output_folder + dep_origin);
@@ -214,7 +235,6 @@ async function build_project(deps, pages) {
         if (dep_origin_info.isDirectory()) {
             await copy_recursive(dep_origin, dep_target);
         }
-        
         else {
             const dep_target_directory = path.dirname(dep_target);
             await fs.promises.mkdir(dep_target_directory, { recursive: true });
@@ -222,88 +242,18 @@ async function build_project(deps, pages) {
         }
     }
 
-    // Process HTML files.
-    // Basically take all HTML files and apply the changes required where necessary.
-    // 1. Embed the Markdown content directly into the html
-    let html_files = pages ?? [
-        './index.html',
-    ];
-
+    let html_files = pages ?? [ './index.html' ];
     for (let i = 0; i < html_files.length; i++) {
-
         const html_file = html_files[i];
-        const html = await fs.promises.readFile(html_file, 'utf8');
-        let modified = false;
-        let $ = cheerio.load(html);
-        
-        const get_first_unhandled_article = () => {
-            // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
-            let article = $('article').filter(function (i, el) { return $(this).attr('handled') !== 'true'; }).first();
-            return article.length > 0 ? article : undefined;
-        }
-        
-        for (let article = get_first_unhandled_article(); article; article = get_first_unhandled_article()) {
-        
-            // mark the article as handled, so that it is not handled twice
-            $(article).attr('handled', 'true');
-        
-            const relative_path = $(article).attr('id');
-            if (fs.existsSync(relative_path)) {
-            
-                const extension = path.parse(relative_path).ext;
-
-                const file_content = await fs.promises.readFile(relative_path, 'utf8');
-                
-                let result;
-
-                switch (extension) {
-                    
-                    case ".md": {
-                        const md = await marked.parse(file_content);
-                        result = await parse(md);
-                    } break;
-                    
-                    case ".json": {
-                        const json = await JSON.parse(file_content);
-                        result = await parse(json.template, json.config)
-                    } break;
-                }
-
-                if (result) {
-
-                    // Remove the original article tag fully and replace it with the processed content
-                    const inner_elements = $(article).html();
-                    $(article).children().remove()
-                    $(result).appendTo(article);
-
-                    // If the template contains any <section class='innermarker'/> tag, put back the old innter html where it is
-                    const inner_marker = $('section[class=innermarker]').first();
-                    if (inner_marker.length > 0) {
-                        inner_marker.replaceWith(inner_elements);
-                    }
-
-                    modified = true;
-                }
-                
-            }
-        }
-
+        const processed_html = await parse(html_file, undefined, true)
         const out_html = path.normalize(output_folder + html_file);
-
-        if (modified) {
-            // console.log('Processed page: ' + util.inspect(html_file));
-            await fs.promises.writeFile(out_html, $.html());
-        }
-        else {
-            // console.log('Copied page: ' + util.inspect(html_file));
-            await fs.promises.copyFile(html_file, out_html);
-        }
-
+        await fs.promises.writeFile(out_html, processed_html);
     }
 
 }
 
-// Handle command
+
+// Handle command line arguments
 const argv = yargs.command('build', 'build the static site in ./out', {
     dependencies: {
         description:
