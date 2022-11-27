@@ -64,13 +64,13 @@ async function parse(input, options, is_root) {
                 data_to_parse = await marked.parse(file_content);
             } break;
             
-            case ".json": {
-                throw "Cant use a json file as a template!"
-            } break;
-
             case ".html": {
                 data_to_parse = file_content;
             } break;
+
+            default: {
+                throw `Cant use files of type ${extension} as templates!`
+            }
         }
     }
     else {
@@ -85,11 +85,12 @@ async function parse(input, options, is_root) {
     // expand template tags
     const get_template_tag = () => {
         // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
-        let template = $('section[class=template]').first();
+        let template = $('section[type=template]').filter(function(i,el){return $(this).attr('handled') !== 'true'}).first();
         return template.length > 0 ? template : undefined;
     }
 
     for (let template = get_template_tag(); template; template = get_template_tag()) {
+        $(template).attr('handled', 'true');
         const inner_html = $(template).html();
         const input_file = $(template).attr('input');
         const template_file = $(template).attr('template');
@@ -101,10 +102,10 @@ async function parse(input, options, is_root) {
         let result = await parse(template_file, json);
 
         // Remove the original article tag fully and replace it with the processed content
-        template.replaceWith($(result))
+        $(template).children().remove()
+        $(result).appendTo(template);
 
-        // If the template contains any <section class='innermarker'/> tag, put back the old innter html where it is
-        const inner_marker = $('section[class=innermarker]').first();
+        const inner_marker = $('section[type=innermarker]').first();
         if (inner_marker.length > 0) {
             inner_marker.replaceWith(inner_html);
         }
@@ -114,7 +115,7 @@ async function parse(input, options, is_root) {
     // expand repeat tags
     const get_repeat_tag = () => {
         // WARNING! the filter function has to be a `function () {}` and not an `() => {}` because F***g javascript.
-        let repeat = $('section[class=repeat]').first();
+        let repeat = $('section[type=repeat]').first();
         return repeat.length > 0 ? repeat : undefined;
     }
 
