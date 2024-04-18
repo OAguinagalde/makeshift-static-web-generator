@@ -22,7 +22,7 @@ async function copy_recursive(src, dest) {
     const stats = exists && await fs.promises.stat(src);
     const is_directory = exists && stats.isDirectory();
     if (is_directory) {
-        await fs.promises.mkdir(dest);
+        if (!fs.existsSync(dest)) await fs.promises.mkdir(dest);
         const files = await fs.promises.readdir(src);
         for (let i = 0; i < files.length; i++) {
             await copy_recursive(
@@ -266,10 +266,9 @@ async function build_project(deps, pages) {
 
     // If the ./out folder exists, remove it and create it again (but empty)
     const output_folder = './out/'
-    if (fs.existsSync(output_folder)) {
-        await fs.promises.rm(output_folder, { recursive: true, force: true });
+    if (!fs.existsSync(output_folder)) {
+        await fs.promises.mkdir(output_folder, { recursive: true });
     }
-    await fs.promises.mkdir(output_folder, { recursive: true });
 
     // Copy all the files and folders marked as dependencies
     const dependencies = deps ?? [];
